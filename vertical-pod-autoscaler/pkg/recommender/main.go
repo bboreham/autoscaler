@@ -63,6 +63,7 @@ var (
 	address                = flag.String("address", ":8942", "The address to expose Prometheus metrics.")
 	storage                = flag.String("storage", "", `Specifies storage mode. Supported values: prometheus, checkpoint (default)`)
 	memorySaver            = flag.Bool("memory-saver", false, `If true, only track pods which have an associated VPA`)
+	oneShotTarget          = flag.String("one-shot-target", "", `Run just once to fetch data and make a recommendation for this container`)
 )
 
 // Prometheus history provider flags
@@ -314,6 +315,15 @@ func run(healthCheck *metrics.HealthCheck, commonFlag *common.CommonFlags) {
 			os.Exit(255)
 		}
 		recommender.GetClusterStateFeeder().InitFromHistoryProvider(provider)
+	}
+
+	if *oneShotTarget != "" {
+		err := recommender.OneShot(*oneShotTarget)
+		if err != nil {
+			klog.ErrorS(err, "Could not run")
+			os.Exit(255)
+		}
+		return
 	}
 
 	// Start updating health check endpoint.

@@ -19,10 +19,13 @@ package routines
 import (
 	"context"
 	"flag"
+	"fmt"
+	"strings"
 	"time"
 
 	"k8s.io/klog/v2"
 
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	vpa_api "k8s.io/autoscaler/vertical-pod-autoscaler/pkg/client/clientset/versioned/typed/autoscaling.k8s.io/v1"
 	"k8s.io/autoscaler/vertical-pod-autoscaler/pkg/recommender/checkpoint"
 	"k8s.io/autoscaler/vertical-pod-autoscaler/pkg/recommender/input"
@@ -52,6 +55,8 @@ type Recommender interface {
 	// MaintainCheckpoints writes at least minCheckpoints if there are more checkpoints to write.
 	// Checkpoints are written until ctx permits or all checkpoints are written.
 	MaintainCheckpoints(ctx context.Context, minCheckpoints int)
+
+	OneShot(string) error
 }
 
 type recommender struct {
@@ -168,6 +173,39 @@ func (r *recommender) RunOnce() {
 	r.clusterState.RateLimitedGarbageCollectAggregateCollectionStates(ctx, time.Now(), r.controllerFetcher)
 	timer.ObserveStep("GarbageCollect")
 	klog.V(3).InfoS("ClusterState is tracking", "aggregateContainerStates", r.clusterState.StateMapSize())
+}
+
+func (r *recommender) OneShot(s string) error {
+	ref, err := parseRef(s)
+	if err != nil {
+		return err
+	}
+
+	klog.V(3).InfoS("Recommender OneShot", "target", ref)
+
+	err = r.clusterStateFeeder.HackSetVPAs(ref)
+	if err != nil {
+		return err
+	}
+	r.clusterStateFeeder.LoadPods()
+	r.UpdateVPAs()
+
+	return nil
+}
+
+// parseRef takes a string like "deploy/foobar" and returns a reference.
+// Hacky hard-coded options for now.
+func parseRef(s string) (*autoscalingv1.CrossVersionObjectReference, error) {
+	kind, name, found := strings.Cut(s, "/")
+	if !found {
+		return nil, fmt.Errorf("invalid object reference %q", s)
+	}
+	version := "apps/v1"
+	switch kind {
+	case "deploy":
+		kind = "Deployment"
+	}
+	return &autoscalingv1.CrossVersionObjectReference{Kind: kind, Name: name, APIVersion: version}, nil
 }
 
 // RecommenderFactory makes instances of Recommender.

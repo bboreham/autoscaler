@@ -23,6 +23,7 @@ import (
 	"slices"
 	"time"
 
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -74,6 +75,8 @@ type ClusterStateFeeder interface {
 
 	// GarbageCollectCheckpoints removes historical checkpoints that don't have a matching VPA.
 	GarbageCollectCheckpoints()
+
+	HackSetVPAs(ref *autoscalingv1.CrossVersionObjectReference) error
 }
 
 // ClusterStateFeederFactory makes instances of ClusterStateFeeder.
@@ -448,6 +451,24 @@ func (feeder *clusterStateFeeder) LoadVPAs(ctx context.Context) {
 		}
 	}
 	feeder.clusterState.ObservedVpas = vpaCRDs
+}
+
+func (feeder *clusterStateFeeder) HackSetVPAs(ref *autoscalingv1.CrossVersionObjectReference) error {
+	vpaCRD := &vpa_types.VerticalPodAutoscaler{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "dummy",
+			Namespace: feeder.vpaObjectNamespace,
+		},
+		Spec: vpa_types.VerticalPodAutoscalerSpec{
+			Recommenders: []*vpa_types.VerticalPodAutoscalerRecommenderSelector{{Name: feeder.recommenderName}},
+			TargetRef:    ref,
+		},
+	}
+
+	feeder.clusterState.ObservedVpas = []*vpa_types.VerticalPodAutoscaler{vpaCRD}
+	selector, _ := feeder.getSelector(context.TODO(), vpaCRD)
+	err := feeder.clusterState.AddOrUpdateVpa(vpaCRD, selector)
+	return err
 }
 
 // LoadPods loads pod into the cluster state.

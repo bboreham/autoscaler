@@ -30,7 +30,6 @@ import (
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
@@ -60,7 +59,9 @@ func patchVpaStatus(vpaClient vpa_api.VerticalPodAutoscalerInterface, vpaName st
 		return
 	}
 
-	return vpaClient.Patch(context.TODO(), vpaName, types.JSONPatchType, bytes, meta.PatchOptions{}, "status")
+	klog.Infof("Would patch %s status: %s", vpaName, string(bytes))
+	//return vpaClient.Patch(context.TODO(), vpaName, types.JSONPatchType, bytes, meta.PatchOptions{}, "status")
+	return nil, nil
 }
 
 // UpdateVpaStatusIfNeeded updates the status field of the VPA API object.
@@ -253,7 +254,8 @@ func CreateOrUpdateVpaCheckpoint(vpaCheckpointClient vpa_api.VerticalPodAutoscal
 	if err != nil {
 		return fmt.Errorf("Cannot marshal VPA checkpoint status patches %+v. Reason: %+v", patches, err)
 	}
-	_, err = vpaCheckpointClient.Patch(context.TODO(), vpaCheckpoint.ObjectMeta.Name, types.JSONPatchType, bytes, meta.PatchOptions{})
+	klog.Infof("Would patch %s: %s", vpaCheckpoint.ObjectMeta.Name, string(bytes))
+	//_, err = vpaCheckpointClient.Patch(context.TODO(), vpaCheckpoint.ObjectMeta.Name, types.JSONPatchType, bytes, meta.PatchOptions{})
 	if err != nil && strings.Contains(err.Error(), fmt.Sprintf("\"%s\" not found", vpaCheckpoint.ObjectMeta.Name)) {
 		_, err = vpaCheckpointClient.Create(context.TODO(), vpaCheckpoint, meta.CreateOptions{})
 	}
