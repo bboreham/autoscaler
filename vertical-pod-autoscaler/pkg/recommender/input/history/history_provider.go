@@ -260,11 +260,17 @@ func (p *prometheusHistoryProvider) readLastLabels(res map[model.PodID]*PodHisto
 		return fmt.Errorf("expected query to return a matrix; got result type %T", result)
 	}
 
-	for _, ts := range matrix {
+	var count int
+	for i, ts := range matrix {
 		podID, err := p.getPodIDFromLabels(ts.Metric)
 		if err != nil {
+			// Flag an error if we never found one with the right label.
+			if i == len(matrix) && count == 0 {
 			return fmt.Errorf("cannot get container ID from labels %v: %v", ts.Metric, err)
+			}
+			continue // Otherwise it's ok to have some pods lacking the label.
 		}
+		count++
 		podHistory, ok := res[*podID]
 		if !ok {
 			podHistory = newEmptyHistory()
