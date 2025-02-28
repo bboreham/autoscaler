@@ -295,14 +295,15 @@ func (p *prometheusHistoryProvider) GetClusterHistory() (map[model.PodID]*PodHis
 	if p.config.Namespace != "" {
 		podSelector = fmt.Sprintf("%s, %s=\"%s\"", podSelector, p.config.CtrNamespaceLabel, p.config.Namespace)
 	}
-	historicalCpuQuery := fmt.Sprintf("rate(container_cpu_usage_seconds_total{%s}[%s])", podSelector, p.config.HistoryResolution)
+	grouping := strings.Join([]string{p.config.CtrNamespaceLabel, p.config.CtrPodNameLabel, p.config.CtrNameLabel}, ",")
+	historicalCpuQuery := fmt.Sprintf("sum by (%s) (rate(container_cpu_usage_seconds_total{%s}[%s]))", grouping, podSelector, p.config.HistoryResolution)
 	klog.V(4).InfoS("Historical CPU usage query", "query", historicalCpuQuery)
 	err := p.readResourceHistory(res, historicalCpuQuery, model.ResourceCPU)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get usage history: %v", err)
 	}
 
-	historicalMemoryQuery := fmt.Sprintf("container_memory_working_set_bytes{%s}", podSelector)
+	historicalMemoryQuery := fmt.Sprintf("max by (%s) (container_memory_working_set_bytes{%s})", grouping, podSelector)
 	klog.V(4).InfoS("Historical memory usage query", "query", historicalMemoryQuery)
 	err = p.readResourceHistory(res, historicalMemoryQuery, model.ResourceMemory)
 	if err != nil {
