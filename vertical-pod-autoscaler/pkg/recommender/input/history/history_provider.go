@@ -54,6 +54,7 @@ type PrometheusHistoryProviderConfig struct {
 	PodLabelPrefix, PodLabelsMetricName              string
 	PodNamespaceLabel, PodNameLabel                  string
 	CtrNamespaceLabel, CtrPodNameLabel, CtrNameLabel string
+	CtrPodNodeLabel                                  string
 	CadvisorMetricsJobName                           string
 	Namespace                                        string
 	PrometheusBasicAuthTransport
@@ -266,7 +267,7 @@ func (p *prometheusHistoryProvider) readLastLabels(res map[model.PodID]*PodHisto
 		if err != nil {
 			// Flag an error if we never found one with the right label.
 			if i == len(matrix) && count == 0 {
-			return fmt.Errorf("cannot get container ID from labels %v: %v", ts.Metric, err)
+				return fmt.Errorf("cannot get container ID from labels %v: %v", ts.Metric, err)
 			}
 			continue // Otherwise it's ok to have some pods lacking the label.
 		}

@@ -73,6 +73,7 @@ func (client *specClient) GetPodSpecs() ([]*BasicPodSpec, error) {
 	}
 	for _, pod := range pods {
 		basicPodSpec := newBasicPodSpec(pod)
+		basicPodSpec.PodLabels["__internal_node"] = pod.Spec.NodeName
 		podSpecs = append(podSpecs, basicPodSpec)
 	}
 	return podSpecs, nil

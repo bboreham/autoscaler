@@ -18,6 +18,7 @@ package api
 
 import (
 	"fmt"
+	"strings"
 
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -82,6 +83,15 @@ func (c *cappingRecommendationProcessor) Apply(
 		return nil, nil, err
 	}
 	for _, containerRecommendation := range limitAdjustedRecommendation {
+		switch {
+		case strings.HasPrefix(containerRecommendation.Scope, "node="):
+			scopeNode := strings.TrimPrefix(containerRecommendation.Scope, "node=")
+			if pod.Spec.NodeName != scopeNode {
+				klog.V(2).InfoS("Ignoring recommendation for different scope", "pod", pod.ObjectMeta.Name, "scope", containerRecommendation.Scope, "podNode", pod.Spec.NodeName)
+				continue
+			}
+			klog.V(2).InfoS("Found recommendation for correct scope", "pod", pod.ObjectMeta.Name, "scope", containerRecommendation.Scope)
+		}
 		container := getContainer(containerRecommendation.ContainerName, pod)
 
 		if container == nil {

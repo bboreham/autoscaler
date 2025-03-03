@@ -79,6 +79,7 @@ var (
 	ctrNamespaceLabel   = flag.String("container-namespace-label", "namespace", `Label name to look for container namespaces`)
 	ctrPodNameLabel     = flag.String("container-pod-name-label", "pod_name", `Label name to look for container pod names`)
 	ctrNameLabel        = flag.String("container-name-label", "name", `Label name to look for container names`)
+	ctrNodeLabel        = flag.String("pod-node-label", "node", `Label name to look for node names`)
 	username            = flag.String("username", "", "The username used in the prometheus server basic auth")
 	password            = flag.String("password", "", "The password used in the prometheus server basic auth")
 )
@@ -301,6 +302,7 @@ func run(healthCheck *metrics.HealthCheck, commonFlag *common.CommonFlags) {
 			CtrNamespaceLabel:      *ctrNamespaceLabel,
 			CtrPodNameLabel:        *ctrPodNameLabel,
 			CtrNameLabel:           *ctrNameLabel,
+			CtrPodNodeLabel:        *ctrNodeLabel,
 			CadvisorMetricsJobName: *prometheusJobName,
 			Namespace:              commonFlag.VpaObjectNamespace,
 			PrometheusBasicAuthTransport: history.PrometheusBasicAuthTransport{
