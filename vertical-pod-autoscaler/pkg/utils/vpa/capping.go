@@ -86,8 +86,8 @@ func (c *cappingRecommendationProcessor) Apply(
 		switch {
 		case strings.HasPrefix(containerRecommendation.Scope, "node="):
 			scopeNode := strings.TrimPrefix(containerRecommendation.Scope, "node=")
-			if pod.Spec.NodeName != scopeNode {
-				klog.V(2).InfoS("Ignoring recommendation for different scope", "pod", pod.ObjectMeta.Name, "scope", containerRecommendation.Scope, "podNode", pod.Spec.NodeName)
+			if podNode := getPodNode(pod); podNode != scopeNode {
+				klog.V(2).InfoS("Ignoring recommendation for different scope", "pod", pod.ObjectMeta.Name, "scope", containerRecommendation.Scope, "podNode", podNode)
 				continue
 			}
 			klog.V(2).InfoS("Found recommendation for correct scope", "pod", pod.ObjectMeta.Name, "scope", containerRecommendation.Scope)
@@ -116,6 +116,27 @@ func (c *cappingRecommendationProcessor) Apply(
 		updatedRecommendations = append(updatedRecommendations, *updatedContainerResources)
 	}
 	return &vpa_types.RecommendedPodResources{ContainerRecommendations: updatedRecommendations}, containerToAnnotationsMap, nil
+}
+
+func getPodNode(pod *apiv1.Pod) string {
+	if pod.Spec.NodeName != "" { // If NodeName is set it's easy.
+		return pod.Spec.NodeName
+	}
+	// Inside the Admission Controller we don't have nodeName set but we could have a NodeAffinity.
+	if pod.Spec.Affinity != nil && pod.Spec.Affinity.NodeAffinity != nil {
+		if req := pod.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution; req != nil {
+			for _, term := range req.NodeSelectorTerms {
+				for _, field := range term.MatchFields {
+					if field.Key == "metadata.name" {
+						if field.Operator == apiv1.NodeSelectorOpIn && len(field.Values) == 1 {
+							return field.Values[0]
+						}
+					}
+				}
+			}
+		}
+	}
+	return ""
 }
 
 // getCappedRecommendationForContainer returns a recommendation for the given container, adjusted to obey policy and limits.
