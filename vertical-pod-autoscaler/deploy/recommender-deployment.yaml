@@ -20,7 +20,13 @@ spec:
         runAsUser: 65534 # nobody
       containers:
       - name: recommender
-        image: registry.k8s.io/autoscaling/vpa-recommender:1.3.0
+        image: registry.k8s.io/autoscaling/vpa-recommender:mine
+        args: 
+          - "--cpu-histogram-decay-half-life=2m"
+          - "--confidence-interval-cpu=2m"
+          - "--memory-histogram-decay-half-life=2m"
+          - "--confidence-interval-memory=2m"
+          - "--recommender-interval=10s"
         imagePullPolicy: IfNotPresent
         resources:
           limits:
